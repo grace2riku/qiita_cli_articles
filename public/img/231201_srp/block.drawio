@@ -1,0 +1,41 @@
+<mxfile host="65bd71144e">
+    <diagram id="LxXqGhKRFAd7wS5ChR2w" name="ページ1">
+        <mxGraphModel dx="1196" dy="340" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1169" pageHeight="827" math="0" shadow="0">
+            <root>
+                <mxCell id="0"/>
+                <mxCell id="1" parent="0"/>
+                <mxCell id="5" style="edgeStyle=none;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;endArrow=classic;endFill=1;startArrow=classic;startFill=1;" parent="1" source="2" target="4" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="2" value="PC（Windows）&lt;br&gt;" style="rounded=0;whiteSpace=wrap;html=1;horizontal=1;verticalAlign=top;" parent="1" vertex="1">
+                    <mxGeometry x="210" y="70" width="180" height="110" as="geometry"/>
+                </mxCell>
+                <mxCell id="3" value="アプリケーション&lt;br&gt;※開発対象" style="rounded=0;whiteSpace=wrap;html=1;" parent="1" vertex="1">
+                    <mxGeometry x="240" y="110" width="120" height="60" as="geometry"/>
+                </mxCell>
+                <mxCell id="4" value="装置（ホスト）" style="rounded=0;whiteSpace=wrap;html=1;" parent="1" vertex="1">
+                    <mxGeometry x="460" y="70" width="170" height="110" as="geometry"/>
+                </mxCell>
+                <mxCell id="6" value="シリアル通信" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;" parent="1" vertex="1">
+                    <mxGeometry x="400" y="140" width="60" height="30" as="geometry"/>
+                </mxCell>
+                <mxCell id="7" value="" style="curved=1;endArrow=classic;html=1;startArrow=classic;startFill=1;exitX=1.015;exitY=0.664;exitDx=0;exitDy=0;exitPerimeter=0;entryX=-0.032;entryY=0.355;entryDx=0;entryDy=0;entryPerimeter=0;" parent="1" edge="1" target="9" source="4">
+                    <mxGeometry width="50" height="50" relative="1" as="geometry">
+                        <mxPoint x="650" y="140" as="sourcePoint"/>
+                        <mxPoint x="700" y="110" as="targetPoint"/>
+                        <Array as="points">
+                            <mxPoint x="700" y="140"/>
+                            <mxPoint x="650" y="110"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="8" value="無線" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;" parent="1" vertex="1">
+                    <mxGeometry x="650" y="150" width="60" height="30" as="geometry"/>
+                </mxCell>
+                <mxCell id="9" value="装置（ターゲット）&lt;br&gt;&lt;br&gt;温度、無線強度" style="rounded=0;whiteSpace=wrap;html=1;" parent="1" vertex="1">
+                    <mxGeometry x="720" y="70" width="170" height="110" as="geometry"/>
+                </mxCell>
+            </root>
+        </mxGraphModel>
+    </diagram>
+</mxfile>

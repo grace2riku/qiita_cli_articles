@@ -1,14 +1,14 @@
 ---
 title: SOLID 依存性逆転の原則を学習中に依存性注入を意識したCppUTestモックテスト環境をつくった
 tags:
-  - SOLID
-  - 依存性逆転の原則
-  - 依存性注入
   - CppUTest
-  - CppuMock
+  - SOLID
+  - 依存性注入
+  - CppUMock
+  - 依存性逆転の原則
 private: false
-updated_at: ''
-id: null
+updated_at: '2023-12-08T22:01:55+09:00'
+id: cc711ae7eea0de194f07
 organization_url_name: persolcrosstechnology
 slide: false
 ignorePublish: false
@@ -16,7 +16,7 @@ ignorePublish: false
 この記事は[設計こばなし Advent Calendar 2023](https://qiita.com/advent-calendar/2023/software_design_talk)の8日目（12/8分）です。
 
 # 概要
-今年度SOLID原則の勉強会を開催してきました。依存性逆転の原則を学ぶ過程でテストしやすくするCppUTestモックをつくったのでその共有です。
+今年度SOLID原則の勉強会を開催してきました。依存性逆転の原則を学ぶ過程でテストしやすくするCppUTestのモックをつくったのでその共有です。
 テストを効率的に実施したいなどの課題がある方の参考になればと思います。
 
 # 依存性逆転の原則の勉強会について
@@ -38,7 +38,7 @@ https://twitter.com/i/spaces/1YqKDoZgMvzxV
 
 
 # CppUTestのモックをつくった理由
-依存性逆転の原則を学んでいると依存性注入も合わせて学ぶことが多いと思います。
+依存性逆転の原則を学んでいると**依存性注入**も合わせて学ぶことが多いと思います。
 インターフェースをテスト対象クラスのコンストラクタに引数で渡す、というものです。
 依存性注入を使うことでテストコード、本番コードの切り替えも容易に出来るようになりテストがしやすくなります。
 
@@ -77,24 +77,242 @@ https://github.com/grace2riku/dip_and_di_test_easy_env
 | ファイル名 | 概要 |
 | ---- | ---- |
 | src/settingvalue_example/SettingValueValidation.cpp | 設定値検証ロジック。<br>validateが読み込んだ設定値を検証するメソッドで今回のテスト対象。 |
-| include/settingvalue_example/ISettingValue.h | 設定値のインターフェース。SettingValueValidationに依存性注入する。 |
-| tests/settingvalue_example/SettingValueMock.cpp | インターフェースの実装。実機をつかわないでテストするときに使う想定。readメソッドをモックにする。 |
-| tests/settingvalue_example/SettingValueExampleTest.cpp | テストのモジュール。SettingValueValidationのvalidateメソッドのテストが書いてある。 |
-| src/settingvalue_example/SettingValueRam.cpp | インターフェースの実装。実機に組込む本番コード。 |
+| include/settingvalue_example/ISettingValue.h | 設定値のインターフェース。<br>SettingValueValidationに依存性注入する。 |
+| tests/settingvalue_example/SettingValueMock.cpp | インターフェースの実装。<br>実機をつかわないでテストするときに使う想定。readメソッドをモックにする。 |
+| tests/settingvalue_example/SettingValueExampleTest.cpp | テストのモジュール。<br>SettingValueValidationのvalidateメソッドのテストが書いてある。 |
+| src/settingvalue_example/SettingValueRam.cpp | インターフェースの実装。<br>実機に組込む製品コード。 |
 
 #### コード詳細
 ##### SettingValueValidation.cpp
+設定値を検証する責務を持ったクラスです。
+コンストラクタに設定値インターフェース（ISettingValue）を指定します。
+依存性注入する具象クラス（SettingValueMockまたはSettingValueRam）を切り替えることにより、validateメソッドの設定値読み込み（read）は動きが変わります。
+validateメソッドは具象クラスのreadメソッドを呼び出し、戻り値を100以上かチェックします。
+判定自体に特に意味はありません。
+
+```cpp:SettingValueValidation.cpp
+#include "SettingValueValidation.h"
+#include "ISettingValue.h"
+
+#include <iostream>
+using namespace std;
+
+// コンストラクタの実装
+SettingValueValidation::SettingValueValidation(ISettingValue* settingValue) {
+    cout << "SettingValueValidation constructor" << endl;
+
+    _settingValue = settingValue;
+}
+
+SettingValueValidation::~SettingValueValidation() {
+    cout << "SettingValueValidation destructor" << endl;
+
+    delete _settingValue;
+}
+
+bool SettingValueValidation::validate() {
+    int value = _settingValue->read();
+    if (value >= 100) return true;
+    return false;
+}
+```
 
 ##### ISettingValue.h
+設定値書き込み、読み込みのインタフェースです。
+具象クラス（SettingValueMockまたはSettingValueRam）はこのインターフェースを実装します。
+
+```cpp:ISettingValue.h
+#ifndef _H_ISETTINGVALUE_
+#define _H_ISETTINGVALUE_
+
+#include <iostream>
+using namespace std;
+
+class ISettingValue {
+    public:
+        virtual void write() = 0;
+        virtual int read() = 0;
+
+        // 仮想デストラクタ
+        virtual ~ISettingValue(){
+            cout << "ISettingValue destructor" << endl;
+        }
+};
+
+#endif	// _H_ISETTINGVALUE_
+```
 
 ##### SettingValueMock.cpp
+インターフェースを実装したモックです。
+実機をつかわないでテストするときに使う想定です。
+readメソッドの中でCppuMockのactualCallを呼び出し、int型の戻り値を返します。
+戻り値はテストのモジュール（SettingValueExampleTest）でつぎのCppUMockの関数を使いセットしています。
+
+```cpp
+  mock().expectOneCall("read").andReturnValue(99);
+```
+
+または
+
+```cpp
+  mock().expectOneCall("read").andReturnValue(100);
+```
+
+
+```cpp:SettingValueMock.cpp
+#include "SettingValueMock.h"
+
+#include <iostream>
+using namespace std;
+
+#include "CppUTest/TestHarness.h"
+#include "CppUTestExt/MockSupport.h"
+
+// コンストラクタの実装
+SettingValueMock::SettingValueMock() {
+    cout << "SettingValueMock constructor" << endl;
+}
+
+SettingValueMock::~SettingValueMock() {
+    cout << "SettingValueMock decstructor" << endl;
+}
+
+void SettingValueMock::write() {
+}
+
+int SettingValueMock::read() {
+    return mock().actualCall("read").returnIntValue();
+}
+```
 
 ##### SettingValueExampleTest.cpp
+テストのモジュールです。
+setup関数でSettingValueMockをSettingValueValidationに依存性注入しインスタンスを生成しています。
+
+```cpp:
+    void setup()
+    {
+      settingValueValidation = new SettingValueValidation(new SettingValueMock());
+    }
+```
+
+テストは2つ書いてあります。
+1つ目はSettingValueinValidテストです。
+CppUMockのexpectOneCall, andReturnValueでSettingValueMockのreadメソッドの戻り値を設定しています。
+SettingValueinValidテストはSettingValueMockのreadメソッドの戻り値を99に設定してます。
+結果、settingValueValidationクラスのvalidateメソッドはfalseを返すはずです。
+CppUTestのCHECK_FALSEのアサーションで期待値falseをテストしています。
+
+```cpp:
+TEST(SettingValueExampleTest, SettingValueinValid)
+{
+  mock().expectOneCall("read").andReturnValue(99);
+
+  CHECK_FALSE(settingValueValidation->validate());
+}
+```
+
+2つ目はSettingValueValidテストです。
+1つ目のテストと同様にCppUMockのexpectOneCall, andReturnValueでSettingValueMockのreadメソッドの戻り値を設定しています。
+SettingValueValidテストはSettingValueMockのreadメソッドの戻り値を100に設定してます。
+結果、settingValueValidationクラスのvalidateメソッドはtrueを返すはずです。
+CppUTestのCHECKのアサーションで期待値trueをテストしています。
+
+```cpp:
+TEST(SettingValueExampleTest, SettingValueValid)
+{
+  mock().expectOneCall("read").andReturnValue(100);
+
+  CHECK(settingValueValidation->validate());
+}
+```
+
+```cpp:SettingValueExampleTest.cpp
+#include "CppUTest/TestHarness.h"
+#include "CppUTestExt/MockSupport.h"
+
+#include <iostream>
+using namespace std;
+#include "SettingValueValidation.h"
+#include "SettingValueMock.h"
+#include "ISettingValue.h"
+
+TEST_GROUP(SettingValueExampleTest)
+{
+    SettingValueValidation* settingValueValidation;
+
+    void setup()
+    {
+      settingValueValidation = new SettingValueValidation(new SettingValueMock());
+    }
+
+    void teardown()
+    {
+      mock().clear();
+      delete settingValueValidation;
+    }
+};
+
+TEST(SettingValueExampleTest, SettingValueinValid)
+{
+  mock().expectOneCall("read").andReturnValue(99);
+
+  CHECK_FALSE(settingValueValidation->validate());
+}
+
+TEST(SettingValueExampleTest, SettingValueValid)
+{
+  mock().expectOneCall("read").andReturnValue(100);
+
+  CHECK(settingValueValidation->validate());
+}
+```
+
 
 ##### SettingValueRam.cpp
+インターフェースを実装した具象クラスです。
+このコードは実機に組込む製品コードを想定しています。
+readメソッドは固定値123を返す実装ですが実際には装置から設定値を読み込むことを考えていました。
+
+```cpp:SettingValueRam.cpp
+#include "SettingValueRam.h"
+#include "Boot.h"
+
+#include <iostream>
+using namespace std;
+
+// コンストラクタの実装
+SettingValueRam::SettingValueRam() {
+    cout << "SettingValueRam constructor" << endl;
+}
+
+SettingValueRam::~SettingValueRam() {
+    cout << "SettingValueRam decstructor" << endl;
+}
+
+void SettingValueRam::write() {
+}
+
+int SettingValueRam::read() {
+    return 123;
+}
+```
 
 
 ## 動作確認結果
+テストを実行すると期待とおりテストは成功することが確認できました。
 
+```
+$ ./bin/dip_and_di_test_easy_env -v
+TEST(SettingValueExampleTest, SettingValueValid)
+ - 0 ms
+TEST(SettingValueExampleTest, SettingValueinValid)
+ - 0 ms
+
+OK (2 tests, 2 ran, 6 checks, 0 ignored, 0 filtered out, 1 ms)
+```
 
 # まとめ
+モックが期待とおりの戻り値を設定し、SettingValueValidationクラスのvalidateメソッドのロジックを確認できました。
+今回はモックの確認でしたが実機に組込む製品コードに切り替えたければSettingValueValidationクラスに依存性注入するクラスをSettingValueRamに変更すればOKです。
+

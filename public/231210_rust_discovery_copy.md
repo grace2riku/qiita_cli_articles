@@ -14,4 +14,141 @@ ignorePublish: false
 ---
 この記事は[micro:bit Advent Calendar 2023 Advent Calendar 2023](https://qiita.com/advent-calendar/2023/microbit)の10日目です。
 
-# new article body
+# 概要
+micro:bit v2でRust Discoveryの写経をしました。感想などの共有です。
+
+Rust Discovery
+
+https://docs.rust-embedded.org/discovery/microbit/index.html
+
+
+# 環境構築
+開発環境構築はこちらに記載されています。
+
+Setting up a development environment
+
+https://docs.rust-embedded.org/discovery/microbit/03-setup/index.html
+
+
+私は次の環境で写経、動作確認しました。
+
+* MacBook 2017 macOS Ventura バージョン13.6
+* micro:bit v2
+
+
+# 写経したところ
+Rust Discoveryは所定の章でコードが書かれています。
+今のところ、私が写経、動作確認したのはつぎになります。
+
+| 章 | 確認 |
+| ---- | ---- |
+| 5. LED roulette | ✅ |
+| 7. UART | ✅ |
+| 8. I2C | ✅ |
+| 9. LED compass | |
+| 10. Punch-o-meter |  |
+
+
+# 写経の方針
+写経の方針はつぎのようにしました。
+
+## ターゲット
+Rust Discoveryはmicro:bit v2かmicro:bit v1で確認できます。
+私はmicro:bit v2を持っていたのでmicro:bit v2で進めました。
+micro:bit v2かmicro:bit v1でビルドの際に手順が少し違うようです。
+
+### Embed.tomlの編集
+Embed.tomlのchipをmicro:bitのハードウェアバージョンにより選択します。
+私の確認環境はmicro:bit v2のため、つぎの設定としました。
+
+```rust:Embed.toml
+[default.general]
+chip = "nrf52833_xxAA" # uncomment this line for micro:bit V2
+# chip = "nrf51822_xxAA" # uncomment this line for micro:bit V1
+
+[default.reset]
+halt_afterwards = true
+
+[default.rtt]
+enabled = false
+
+[default.gdb]
+enabled = true
+```
+
+参照先：
+
+https://docs.rust-embedded.org/discovery/microbit/05-led-roulette/index.html
+
+
+### 標準ライブラリのコンパイル済みバージョン（実際には縮小版）のダウンロード
+ビルドの前に標準ライブラリのコンパイル済みバージョン（実際には縮小版）のダウンロードが必要とのことです。
+ダウンロードする際のコマンドがmicro:bitのハードウェアバージョンにより異なります。
+
+```
+# For micro:bit v2
+$ rustup target add thumbv7em-none-eabihf
+
+# For micro:bit v1
+$ rustup target add thumbv6m-none-eabi
+```
+
+参照先：
+
+https://docs.rust-embedded.org/discovery/microbit/05-led-roulette/build-it.html
+
+
+### ビルド
+ビルドのコマンドがmicro:bitのハードウェアバージョンにより異なります。
+
+```
+# For micro:bit v2
+$ cargo build --features v2 --target thumbv7em-none-eabihf
+
+# For micro:bit v1
+$ cargo build --features v1 --target thumbv6m-none-eabi
+```
+
+参照先：
+
+https://docs.rust-embedded.org/discovery/microbit/05-led-roulette/build-it.html
+
+
+### フラッシュ
+フラッシュのコマンドがmicro:bitのハードウェアバージョンにより異なります。
+
+```
+# For micro:bit v2
+$ cargo embed --features v2 --target thumbv7em-none-eabihf
+
+# For micro:bit v1
+$ cargo embed --features v1 --target thumbv6m-none-eabi
+```
+
+参照先：
+
+https://docs.rust-embedded.org/discovery/microbit/05-led-roulette/flash-it.html
+
+
+## ディレクトリ構成
+写経のやり方は好み、いろいろやり方ははあると思いますが今回私は下図のようにRust Discoveryの各章で書かれているコード毎にディレクトリを作成し写経するようにしました。
+
+![src_tree.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/171866/c595a82f-0d10-a84d-313b-41e013792e21.png)
+
+
+Rust Discovery micro:bitのGitHubリポジトリはこちらにあります。
+
+https://github.com/rust-embedded/discovery/tree/master/microbit
+
+srcディレクトリ以下に各章のRust Discoveryの各章のコードが格納されています。
+写経する際はこちらのディレクトリを自分の作業用ディレクトリにコピーし、Rust Discoveryの各章で書かれているコードを写経していきました。
+
+こちらは参考までに私の写経用のGitHubリポジトリです。
+
+https://github.com/grace2riku/rust_discovery_microbit_copy
+
+
+# 感想
+Rust Discoveryの記載のとおりに環境構築、動作確認ができました。
+もしmicro:bitをお持ちの方でRustに興味のある方は写経してみては如何でしょうか。
+

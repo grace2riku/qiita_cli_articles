@@ -1,0 +1,39 @@
+<mxfile host="65bd71144e">
+    <diagram id="AJdf-G52WvC_ri3ZTvWX" name="ページ1">
+        <mxGraphModel dx="1142" dy="254" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1169" pageHeight="827" math="0" shadow="0">
+            <root>
+                <mxCell id="0"/>
+                <mxCell id="1" parent="0"/>
+                <mxCell id="4" style="edgeStyle=none;html=1;endArrow=classic;endFill=1;startArrow=none;startFill=1;" parent="1" source="7" edge="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <mxPoint x="700" y="105" as="targetPoint"/>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="2" value="FTDI USB MPSSE&lt;br&gt;ケーブル" style="rounded=1;whiteSpace=wrap;html=1;" parent="1" vertex="1">
+                    <mxGeometry x="277.5" y="80" width="120" height="60" as="geometry"/>
+                </mxCell>
+                <mxCell id="3" value="HostIF提供側&lt;br&gt;Spresense（Spresense SDK）" style="rounded=1;whiteSpace=wrap;html=1;" parent="1" vertex="1">
+                    <mxGeometry x="730" y="80" width="120" height="60" as="geometry"/>
+                </mxCell>
+                <mxCell id="5" value="HostIFの通信&lt;br&gt;I2CまたはSPI" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;" parent="1" vertex="1">
+                    <mxGeometry x="510" y="30" width="90" height="30" as="geometry"/>
+                </mxCell>
+                <mxCell id="6" value="&lt;span style=&quot;color: rgb(33, 37, 48); font-family: SST, &amp;quot;Helvetica Neue&amp;quot;, Helvetica, Arial, sans-serif; text-align: start;&quot;&gt;&lt;font style=&quot;font-size: 12px;&quot;&gt;B2Bコネクタピッチ変換基板&lt;/font&gt;&lt;/span&gt;" style="rounded=1;whiteSpace=wrap;html=1;verticalAlign=top;labelBackgroundColor=none;fillColor=none;" parent="1" vertex="1">
+                    <mxGeometry x="702.5" y="35" width="175" height="130" as="geometry"/>
+                </mxCell>
+                <mxCell id="8" value="" style="edgeStyle=none;html=1;endArrow=none;endFill=1;startArrow=classic;startFill=1;entryX=0.042;entryY=0.5;entryDx=0;entryDy=0;entryPerimeter=0;" parent="1" target="7" edge="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <mxPoint x="400" y="105" as="sourcePoint"/>
+                        <mxPoint x="490" y="110" as="targetPoint"/>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="7" value="レベル変換&lt;br&gt;3.3V⇔1.8V" style="rounded=1;whiteSpace=wrap;html=1;" parent="1" vertex="1">
+                    <mxGeometry x="495" y="70" width="120" height="70" as="geometry"/>
+                </mxCell>
+                <mxCell id="9" value="&lt;div style=&quot;text-align: start;&quot;&gt;&lt;span style=&quot;background-color: initial;&quot;&gt;&lt;font face=&quot;SST, Helvetica Neue, Helvetica, Arial, sans-serif&quot; color=&quot;#212530&quot;&gt;ホスト&lt;/font&gt;&lt;/span&gt;&lt;/div&gt;&lt;div style=&quot;text-align: start;&quot;&gt;&lt;font face=&quot;SST, Helvetica Neue, Helvetica, Arial, sans-serif&quot; color=&quot;#212530&quot;&gt;PC, OS: Linux&lt;/font&gt;&lt;/div&gt;" style="rounded=1;whiteSpace=wrap;html=1;verticalAlign=top;labelBackgroundColor=none;fillColor=none;" parent="1" vertex="1">
+                    <mxGeometry x="250" y="40" width="175" height="125" as="geometry"/>
+                </mxCell>
+            </root>
+        </mxGraphModel>
+    </diagram>
+</mxfile>

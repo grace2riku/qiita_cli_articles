@@ -2,6 +2,7 @@
 title: NervesとWi-SUNドングルで自宅の消費電力を把握したい
 tags:
   - Nerves
+  - Livebook
   - Wi-SUN
 private: false
 updated_at: ''
@@ -12,4 +13,393 @@ ignorePublish: false
 ---
 この記事は[#NervesJP Advent Calendar 2023](https://qiita.com/advent-calendar/2023/nervesjp)の20日目です。
 
-# new article body
+# 概要
+Nervesとラトックシステム社が販売しているWi-SUN USBアダプターでスマートメータから電力量計測を試してみた記事です。
+すでにPython・JavaScriptでの電力可視化の事例がありますがNervesの実装でやってみたくなった、という個人的興味が動機です。
+今回はPythonのWeb記事を参考にNerves・Elixirで実装してみます。
+
+## Python実装のWeb記事（今回の元ネタ）
+
+スマートメータからWi-SUN Bルートで電力量を知る（その１）
+
+https://www.ratoc-e2estore.com/blog/2023/06/wsuha-01
+
+https://www.ratoc-e2estore.com/blog/2023/06/wsuha-02
+
+Pythonサンプルスクリプト（今回の移植対象コード）
+
+https://www.ratoc-e2estore.com/blog/wsuha_broute_demo_01
+
+
+## JavaScriptの実装
+
+https://github.com/futomi/node-wisunrb
+
+
+# ハードウェア
+システム全体は下図になります。
+
+![hw.jpg](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/171866/c821a64d-cbaa-450b-8084-2673e4fad7b6.jpeg)
+
+Nervesを動かすハードウェアはラズパイ4です。
+ラズパイ4のUSBポートに接続している黒いものがラトックシステム社が販売しているWi-SUN USBアダプターです。
+
+今回使用したのはWi-SUN USBアダプター RS-WSUHAシリーズ RS-WSUHA-Pです。
+
+https://www.ratocsystems.com/products/wisun/usb-wisun/rs-wsuha/
+
+
+# 事前準備
+# Bルートパスワード、IDの入手
+Wi-SUN USBアダプタがスマートメータと通信し消費電力を取得するためにはBルートのIDとパスワードを送配電会社から教えてもらう必要があります。
+事前に送配電会社に申し込み、BルートのIDとパスワードを取得しておきます。
+パスワードは12文字、IDは32文字の文字列です。
+この記事ではパスワード、IDを隠して書いています。
+
+# 動作確認手順
+動作確認のアプローチとしてLivebookを確認環境とすることにしました。
+理由としては私に移植対象のPythonコードをElixirに書き換えるスキルがないためです。
+Livebookを使えばブラウザから移植対象のPythonコードをひとつずつ段階を踏んでElixirコードにして確認していけると思ったからです。
+
+## Nerves, Livebookのインストール
+
+## Livebookログイン
+ブラウザで【http://nerves.local】にアクセスする
+
+パスワード【nerves】を入力する。
+
+![nerves_login.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/171866/b63b03e5-9714-8584-235f-88329b5d5e0c.png)
+
+## Wi-SUN USBアダプタ接続確認
+
+Wi-SUN未接続時
+```
+Circuits.UART.enumerate()
+```
+
+```
+%{"ttyAMA0" => %{}, "ttyS0" => %{}}
+```
+
+Wi-SUN接続時
+```
+%{
+  "ttyAMA0" => %{},
+  "ttyS0" => %{},
+  "ttyUSB0" => %{
+    description: "FT230X Basic UART",
+    serial_number: "DK8AAFGE",
+    manufacturer: "FTDI",
+    vendor_id: 1027,
+    product_id: 24597
+  }
+}
+```
+
+{:ok, pid} = Circuits.UART.start_link()
+
+```
+{:ok, #PID<0.3604.0>}
+```
+
+## UARTオープン
+
+UART Open
+```
+Circuits.UART.open(pid, "ttyUSB0", speed: 115_200, active: false)
+```
+
+Openできた。
+```
+:ok
+```
+
+## SKVERコマンドの確認
+
+SKVERコマンドの確認
+```
+Circuits.UART.write(pid, "SKVER\r\n")
+```
+
+```
+:ok
+```
+
+```
+Circuits.UART.read(pid)
+```
+
+バージョンが読めた
+```
+{:ok, "SKVER\r\nEVER 1.5.2\r\nOK\r\n"}
+```
+
+## Web記事 〜スマートメータからWi-SUN Bルートで電力量を知る（その１）〜を手順を実施
+
+### 受信したEDATA(bit列)を16進ASCIIに変換する機能の設定状況を確認
+
+```elixir
+# bit列->16進ASCII変換機能の設定状態確認 リターン値が00は変換機能はOFF, 01は変換機能はON
+Circuits.UART.write(pid, "ROPT\r\n")
+Circuits.UART.read(pid)
+```
+
+変換機能ONを確認できた
+```elixir
+{:ok, "ROPT\r\nOK 01\r"}
+```
+
+### フロー制御の設定状態確認
+
+```elixir
+# フロー制御の設定状態確認 リターン値が00=フロー制御はOFF, 80はフロー制御はON
+Circuits.UART.write(pid, "RUART\r\n")
+Circuits.UART.read(pid)
+```
+
+フロー制御ONを確認できた
+```elixir
+{:ok, "RUART\r\nOK 80\r"}
+```
+
+## Web記事 〜スマートメータからWi-SUN Bルートで電力量を知る（その２）〜を手順を実施
+
+以降は
+[スマートメータからWi-SUN Bルートで電力量を知る（その２）](https://www.ratoc-e2estore.com/blog/2023/06/wsuha-02)
+の手順
+
+### SKRESETコマンドの確認
+
+```elixir
+# Reset WSUHA command buffer
+Circuits.UART.write(pid, "SKRESET\r\n")
+Circuits.UART.read(pid)
+```
+
+SKRESETコマンドのエコーバックを確認
+```elixir
+{:ok, "SKRESET\r\n"}
+```
+
+SKRESETコマンド実行正常終了を示す”OKをチェックする
+```elixir
+Circuits.UART.read(pid)
+```
+
+SKRESETコマンド実行正常終了を示す”OKを確認できた
+```elixir
+{:ok, "OK\r\n"}
+```
+
+### 送配電会社から通知されたスマートメータ(電力計)のパスワード設定
+パスワードはWeb記事参照用に変更（0123456789AB）しています。
+
+```elixir
+# Set B-route Authentication Password（送配電会社から通知されたスマートメータ(電力計)のパスワード12文字）
+Circuits.UART.write(pid, "SKSETPWD C 0123456789AB\r\n")
+Circuits.UART.read(pid)
+```
+
+SKSETPWDコマンドのエコーバックとOKを確認できた
+```elixir
+{:ok, "SKSETPWD C 0123456789AB\r\nOK\r\n"}
+```
+
+### 送配電会社から通知されたスマートメータ(電力計)のID設定
+IDはWeb記事参照用に変更（00112233445566778899AABBCCDDEEFF）しています。
+
+```elixir
+# Set B-route Authentication ID（送配電会社から通知されたスマートメータ(電力計)のID 32文字）
+Circuits.UART.write(pid, "SKSETRBID 00112233445566778899AABBCCDDEEFF\r\n")
+Circuits.UART.read(pid)
+```
+
+SKSETRBIDコマンドのエコーバックとOKを確認できた
+```elixir
+{:ok, "SKSETRBID 00112233445566778899AABBCCDDEEFF\r\nOK\r\n"}
+```
+
+
+### SKSCANコマンドの確認
+
+```elixir
+# Scan start to detect SmartMeter
+Circuits.UART.write(pid, "SKSCAN 2 FFFFFFFF 6 0 \r\n")
+Circuits.UART.read(pid)
+```
+
+SKSCANコマンドのエコーバックとOKを確認する
+```elixir
+{:ok, "OK\r\nSKSCAN 2 FFFFFFFF 6 0 \r\nOK\r\n"}
+```
+
+```elixir
+Circuits.UART.read(pid)
+```
+
+```elixir
+{:ok, "SKSCAN 2 FFFF"}
+```
+
+エコーバックとOKが読めていないのでもう一度、readする
+```elixir
+Circuits.UART.read(pid)
+```
+
+エコーバックとOKが確認できた
+```elixir
+{:ok, "FFFF 6 0 \r\nOK\r\n"}
+```
+
+EVENT 20、EPANDESCを確認する
+
+```elixir
+Circuits.UART.read(pid)
+```
+
+PANに関する情報を読めた
+```elixir
+{:ok,
+ " 20 FE80:0000:0000:0000:021D:1291:0004:E578 0\r\nEPANDESC\r\n  Channel:31\r\n  Channel Page:09\r\n  Pan ID:B5FB\r\n  Addr:0011223344556677\r\n  LQI:DD\r\n  Side:0\r\n  PairID:0194BFAD\r\n"}
+```
+
+読めたAddr（スマートメータのMacアドレス）はWeb記事参照用に変更（0011223344556677）しています。
+
+
+
+EVENT 22が返ってくることを期待してリードする
+```elixir
+Circuits.UART.read(pid)
+```
+
+EVENT 22が返ってくることを確認できた
+```elixir
+{:ok, "EVENT 22 FE80:0000:0000:0000:021D:1291:0004:E578 0\r\n"}
+```
+
+### SKSREGコマンドでS2レジスタにCannelをセット
+
+SKSREGコマンドでS2レジスタにCannel(EPANDESCで受信した31)をセットする
+```elixir
+# pull out Channel and set it to S2 reg.
+Circuits.UART.write(pid, "SKSREG S2 31\r\n")
+Circuits.UART.read(pid)
+```
+
+SKSREGコマンドのエコーバック、OKを確認できた
+```elixir
+{:ok, "SKSREG S2 31\r\nOK\r\n"}
+```
+
+### SKSREGコマンドでS3レジスタにPan IDをセット
+
+SKSREGコマンドでS3レジスタにPan ID(同じくEPANDESCで受信した88xx)をセットする
+```elixir
+# pull out Pan ID and set it to S3 reg.
+Circuits.UART.write(pid, "SKSREG S3 B5FB\r\n")
+Circuits.UART.read(pid)
+```
+
+SKSREGコマンドのエコーバック、OKを確認できた
+```elixir
+{:ok, "SKSREG S3 B5FB\r\nOK\r\n"}
+```
+
+### SKLL64コマンドを使用してIPv6アドレスに変換
+
+EPANDESCで受信したスマートメータのアドレスをSKLL64コマンドを使用してIPv6アドレスに変換する
+```elixir
+# Convert MAC Address(64bit) to IPV6 address
+Circuits.UART.write(pid, "SKLL64 0011223344556677\r\n")
+Circuits.UART.read(pid)
+```
+
+IPV6 addressが取得できた
+```elixir
+{:ok, "SKLL64 0011223344556677\r\nFE80:0000:0000:0000:C2F9:4500:4058:B5FB\r\n"}
+```
+
+### SKJOINコマンドでPANA接続シーケンスを開始する
+
+IPv6アドレスのスマートメータに対してSKJOINコマンドでPANA接続シーケンスを開始する
+```elixir
+# start to set up PANA Connection sequence
+Circuits.UART.write(pid, "SKJOIN FE80:0000:0000:0000:C2F9:4500:4058:B5FB\r\n")
+Circuits.UART.read(pid)
+```
+
+EVENT 25の接続完了通知を受信するまで待つ
+```elixir
+{:ok,
+ "EVENT 21 FE80:0000:0000:0000:C2F9:4500:4058:B5FB 0 02\r\nEVENT 02 FE80:0000:0000:0000:C2F9:4500:4058:B5FB 0\r\nERXUDP FE80:0000:0000:0000:C2F9:4500:4058:B5FB FE80:0000:0000:0000:021D:1291:0004:E578 02CC 02CC 0011223344556677 0 0 0028 00000028C0000002136F0BFE2FDA83DC00060000000400000000000500030000000400000000000C\r\nEVENT 21 FE80:0000:0000:0000:C2F9:4500:4058:B5FB 0 00\r\nERXUDP FE80:0000:0000:0000:C2F9:4500:4058:B5FB FE80:0000:0000:0000:021D:1291:0004:E578 02CC 02CC 0011223344556677 0 0 0068 0000006880000002136F0BFE2FDA83DD000500000010000044AA92C21CDBB377DEBBEBC9B755B87D000200000038000001E300382F007835A9A40F167C39A7A5AB6ACB3F1070534D3030303030303939303231373030303030303030303030303031393442464144\r\nEVENT 21 FE80:0000:0000:0000:C2F9:4500:4058:B5FB 0 00\r\nERXUDP FE80:0000:0000:0000:C2F9:4500:4058:B5FB FE80:0000:0000:0000:021D:1291:0004:E578 02CC 02CC 0011223344556677 0 0 0054 0000005480000002136F0BFE2FDA83DE00020000003B000001E4003B2F807835A9A40F167C39A7A5AB6ACB3F1070A69CF318ABB2DA0AC088301193DE29E2000000006852F3CB9B3291068BF82BB6863F1D2B8100\r\nEVENT 21 FE80:0000:0000:0000:C2F9:4500:4058:B5FB 0 00\r\nERXUDP FE80:0000:0000:0000:C2F9:4500:4058:B5FB FE80:0000:0000:0000:021D:1291:0004:E578 02CC 02CC 0011223344556677 0 0 0058 00000058A0000002136F0BFE2FDA83DF000700000004000000000000000200000004000003E4000400040000000400000000160100080000000400000001518000010000001000006F2356B28BAD8AE081F64840CF5B5933\r\nEVENT 21 FE80:0000:0000:0000:C2F9:4500:4058:B5FB 0 00\r\nEVENT 25 FE80:0000:0000:0000:C2F9:4500:4058:B5FB 0\r\nERXUDP FE80:0000:0000:0000:C2F9:4500:4058:B5FB FF02:0000:0000:0000:0000:0000:0000:0001 0E1A 0E1A 0011223344556677 1 0 0012 108100000EF0010EF0017301D50401028801\r\n"}
+```
+
+### Econet Lite DATA frameを定義する
+
+Econet Lite DATA frameを定義する
+
+```elixir
+defmodule SmartMeter do
+  # Econet Lite DATAフレームの設定値
+  @ehd1 0x10       # Econet Lite
+  @ehd2 0x81       # EDATA format 1
+  @tidh 0x52       # Transaction ID H "R"
+  @tidl 0x53       # Transaction ID L "S"
+  @seoj_x1 0x05    # Source EOJ Class Group Code
+  @seoj_x2 0xFF    # Source EOJ Class Code
+  @seoj_x3 0x01    # Source EOJ Instance Code
+  @deoj_x1 0x02    # Destination EOJ Class Group Code
+  @deoj_x2 0x88    # Destination EOJ Class Code
+  @deoj_x3 0x01    # Destination EOJ Instance Code
+  @esv_req 0x62    # Econet Lite Service Code
+  @opc_req 0x01    # Number of property counter be red out.
+  @epc_req 0xE7    # Econet Property Counter name.
+  @pdc_req 0x00    # Property Data Byte count.
+
+  # REQコマンドのバイト列を生成
+  @req_cmd [
+    @ehd1, @ehd2, @tidh, @tidl, @seoj_x1, @seoj_x2, @seoj_x3,
+    @deoj_x1, @deoj_x2, @deoj_x3, @esv_req, @opc_req, @epc_req, @pdc_req
+  ]
+
+  def get_req_cmd() do
+    @req_cmd
+  end
+end
+```
+
+コマンドのバイト列が正しいか確認する
+```elixir
+SmartMeter.get_req_cmd()
+```
+
+コマンドのバイト列が正しいことを確認した
+```elixir
+[16, 129, 82, 83, 5, 255, 1, 2, 136, 1, 98, 1, 231, 0]
+```
+
+### スマートメータに電文をおくる
+スマートメータに電文をおくる
+
+```elixir
+# Send Data Request Command
+Circuits.UART.write(
+  pid,
+  "SKSENDTO 1 FE80:0000:0000:0000:C2F9:4500:4058:B5FB 0E1A 1 0 000E "
+)
+
+Circuits.UART.write(pid, SmartMeter.get_req_cmd())
+
+Circuits.UART.write(pid, "SKSENDTO")
+```
+
+スマートメータから電文を読む
+
+```elixir
+Circuits.UART.read(pid)
+```
+
+```elixir
+{:ok,
+ "ERXUDP FE80:0000:0000:0000:C2F9:4500:4058:B5FB FE80:0000:0000:0000:021D:1291:0004:E578 0E1A 0E1A 0011223344556677 1 0 0026 1081000102880105FF017302EA0B07E70C13001E000000458EEB0B07E70C13001E0000000015\r\nSKSENDTO 1 FE80:0000:0000:0000:C2F9:4500:4058:B5FB 0E1A 1 0 000E \r\nEVENT 21 FE80:0000:0000:0000:C2F9:4500:4058:B5FB 0 00\r\nOK\r\nSKSENDTOERXUDP FE80:0000:0000:0000:C2F9:4500:4058:B5FB FE80:0000:0000:0000:021D:1291:0004:E578 0E1A 0E1A 0011223344556677 1 0 0012 1081525302880105FF017201E704000000E4\r\n"}
+ ```

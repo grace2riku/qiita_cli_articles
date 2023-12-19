@@ -19,6 +19,7 @@ Nervesとラトックシステム社が販売しているWi-SUN USBアダプタ�
 今回はPythonのWeb記事を参考にNerves・Elixirで実装してみます。
 
 ## Python実装のWeb記事（今回の元ネタ）
+こちらのWeb記事の手順でPythonサンプルスクリプトをNerves・Elixirに移植します。
 
 スマートメータからWi-SUN Bルートで電力量を知る（その１）
 
@@ -54,7 +55,7 @@ https://www.ratocsystems.com/products/wisun/usb-wisun/rs-wsuha/
 Wi-SUN USBアダプタがスマートメータと通信し消費電力を取得するためにはBルートのIDとパスワードを送配電会社から教えてもらう必要があります。
 事前に送配電会社に申し込み、BルートのIDとパスワードを取得しておきます。
 パスワードは12文字、IDは32文字の文字列です。
-この記事ではパスワード、IDを隠して書いています。
+この記事ではパスワード、IDを変更して書いています。
 
 # 動作確認手順
 動作確認のアプローチとしてLivebookを確認環境とすることにしました。
@@ -62,27 +63,41 @@ Wi-SUN USBアダプタがスマートメータと通信し消費電力を取得�
 Livebookを使えばブラウザから移植対象のPythonコードをひとつずつ段階を踏んでElixirコードにして確認していけると思ったからです。
 
 ## Nerves, Livebookのインストール
+Nerves, Livebookのインストールはこちらのページを参照しました。
+
+https://github.com/nerves-livebook/nerves_livebook
+
+ターゲットごとにSDカードイメージが用意されていますのでそれを書き込むだけで簡単に環境構築できました。
+ラズパイ4の場合はつぎリンク先に格納されているファイル（nerves_livebook_rpi4.fw）でした。
+
+https://github.com/nerves-livebook/nerves_livebook/releases
+
 
 ## Livebookログイン
-ブラウザで【http://nerves.local】にアクセスする
-
-パスワード【nerves】を入力する。
+SDカードイメージを書き込んだらSDカードを接続し、ラズパイ4の電源をONします。
+ブラウザで【http://nerves.local】にアクセスし、パスワード【nerves】を入力すればLivebookにログインできます。
 
 ![nerves_login.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/171866/b63b03e5-9714-8584-235f-88329b5d5e0c.png)
 
 ## Wi-SUN USBアダプタ接続確認
+Wi-SUN USBアダプタはラズパイ4からシリアルデバイスとして見えます。
+Circuits.UARTライブラリのenumerate関数を使用し、デバイスのパス名を確認します。
 
-Wi-SUN未接続時
-```
+Wi-SUN USBアダプタ未接続時にenumerate関数を実行します。
+
+```elixir
 Circuits.UART.enumerate()
 ```
 
-```
+Wi-SUN USBアダプタは存在していません。
+```elixir
 %{"ttyAMA0" => %{}, "ttyS0" => %{}}
 ```
 
-Wi-SUN接続時
-```
+Wi-SUN USBアダプタを接続しenumerate関数を実行します。
+Wi-SUN USBアダプタのパスは"ttyUSB0"であることがわかりました。
+
+```elixir
 %{
   "ttyAMA0" => %{},
   "ttyS0" => %{},
@@ -96,41 +111,47 @@ Wi-SUN接続時
 }
 ```
 
-{:ok, pid} = Circuits.UART.start_link()
+## UART初期化
+UART初期化します。
 
+```elixir
+{:ok, pid} = Circuits.UART.start_link()
 ```
+
+初期化が問題なく完了しました。
+```elixir
 {:ok, #PID<0.3604.0>}
 ```
 
 ## UARTオープン
+UARTをOpenします。
 
-UART Open
-```
+```elixir
 Circuits.UART.open(pid, "ttyUSB0", speed: 115_200, active: false)
 ```
 
-Openできた。
-```
+Openできました。
+```elixir
 :ok
 ```
 
 ## SKVERコマンドの確認
+SKVERコマンドを実行します。
 
-SKVERコマンドの確認
-```
+```elixir
 Circuits.UART.write(pid, "SKVER\r\n")
 ```
 
-```
+```elixir
 :ok
 ```
 
-```
+```elixir
 Circuits.UART.read(pid)
 ```
 
-バージョンが読めた
-```
+バージョンが読めました。
+```elixir
 {:ok, "SKVER\r\nEVER 1.5.2\r\nOK\r\n"}
 ```
 
@@ -403,3 +424,70 @@ Circuits.UART.read(pid)
 {:ok,
  "ERXUDP FE80:0000:0000:0000:C2F9:4500:4058:B5FB FE80:0000:0000:0000:021D:1291:0004:E578 0E1A 0E1A 0011223344556677 1 0 0026 1081000102880105FF017302EA0B07E70C13001E000000458EEB0B07E70C13001E0000000015\r\nSKSENDTO 1 FE80:0000:0000:0000:C2F9:4500:4058:B5FB 0E1A 1 0 000E \r\nEVENT 21 FE80:0000:0000:0000:C2F9:4500:4058:B5FB 0 00\r\nOK\r\nSKSENDTOERXUDP FE80:0000:0000:0000:C2F9:4500:4058:B5FB FE80:0000:0000:0000:021D:1291:0004:E578 0E1A 0E1A 0011223344556677 1 0 0012 1081525302880105FF017201E704000000E4\r\n"}
  ```
+
+応答の電文が長いので見やすくするためにスペースで改行します。
+
+```elixir
+{:ok,
+ "ERXUDP FE80:0000:0000:0000:C2F9:4500:4058:B5FB 
+ FE80:0000:0000:0000:021D:1291:0004:E578 
+ 0E1A 
+ 0E1A 
+ 0011223344556677 
+ 1 
+ 0 
+ 0026 
+ 1081000102880105FF017302EA0B07E70C13001E000000458EEB0B07E70C13001E0000000015\r\n
+ 
+ SKSENDTO 1 FE80:0000:0000:0000:C2F9:4500:4058:B5FB 0E1A 1 0 000E \r\n
+ 
+ EVENT 21 FE80:0000:0000:0000:C2F9:4500:4058:B5FB 0 00\r\n
+ 
+ OK\r\n
+ 
+ SKSENDTOERXUDP 
+ FE80:0000:0000:0000:C2F9:4500:4058:B5FB 
+ FE80:0000:0000:0000:021D:1291:0004:E578 
+ 0E1A 
+ 0E1A 
+ 0011223344556677 
+ 1 
+ 0 
+ 0012 
+ 1081525302880105FF017201E704000000E4\r\n"}
+ ```
+
+# 応答データを解析
+
+Web記事 [スマートメータからWi-SUN Bルートで電力量を知る（その２）](https://www.ratoc-e2estore.com/blog/2023/06/wsuha-02)を参照し、
+瞬間消費電力値が応答データとして返っている可能性があるデータはつぎのデータ列とあたりをつけました。
+
+この応答データの最終行の
+
+ ```
+ SKSENDTOERXUDP 
+ FE80:0000:0000:0000:C2F9:4500:4058:B5FB 
+ FE80:0000:0000:0000:021D:1291:0004:E578 
+ 0E1A 
+ 0E1A 
+ 0011223344556677 
+ 1 
+ 0 
+ 0012 
+ 1081525302880105FF017201E704000000E4\r\n"}
+ ```
+
+この部分です。
+
+ ```
+ 1081525302880105FF017201E704000000E4\r\n"}
+ ```
+
+受診した応答データを電文の仕様に当てはめていくと瞬間消費電力は**228W**という結果になりました。
+
+![reply_analysis.jpg](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/171866/61ebf130-cf8b-3791-ac24-a3bd3cecd204.jpeg)
+
+# 感想
+Livebookで細かく動作確認をすすめていき、瞬間消費電力を取得することができました。
+Livebookで動作確認できた後にロジックをコード化することでバグを生み出さずに、出戻りすくなく開発できるかもしれないと思いました。
+このようなハードウェアの動作を細かくひとつひとつ確認していくときにLivebookは重宝するな、と感じました。
